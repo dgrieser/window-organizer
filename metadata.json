@@ -1,8 +1,9 @@
 {
   "uuid": "window-organizer@david-grieser.de",
   "name": "Window Organizer",
-  "description": "Moves newly created normal windows to the monitor under the mouse cursor.",
+  "description": "Moves new windows to the selected monitor and optionally centers them.",
   "url": "https://github.com/dgrieser/window-organizer",
+  "settings-schema": "org.gnome.shell.extensions.window-organizer",
   "shell-version": ["49"],
-  "version": 1
+  "version": 2
 }

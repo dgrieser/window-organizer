@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.window-organizer" path="/org/gnome/shell/extensions/window-organizer/">
+    <key name="target-monitor-mode" type="s">
+      <default>'mouse-cursor'</default>
+      <summary>How to choose the target monitor for new windows</summary>
+      <description>Use either the monitor under the mouse cursor or the monitor of the currently focused window.</description>
+    </key>
+    <key name="center-windows" type="b">
+      <default>false</default>
+      <summary>Center windows on the target monitor</summary>
+      <description>If enabled, new windows are centered on the target monitor after placement.</description>
+    </key>
+  </schema>
+</schemalist>

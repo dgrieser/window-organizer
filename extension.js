@@ -4,6 +4,11 @@ import GLib from "gi://GLib";
 import Meta from "gi://Meta";
 import { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
 
+const TARGET_MONITOR_MODE_KEY = "target-monitor-mode";
+const CENTER_WINDOWS_KEY = "center-windows";
+const TARGET_MONITOR_MODE_MOUSE = "mouse-cursor";
+const TARGET_MONITOR_MODE_FOCUSED = "focused-window";
+
 function getMonitorAtPoint(x, y) {
   const nMonitors = global.display.get_n_monitors();
 
@@ -25,6 +30,7 @@ function getMonitorAtPoint(x, y) {
 
 export default class WindowOrganizer extends Extension {
   enable() {
+    this._settings = this.getSettings();
     this._windowCreatedId = global.display.connect("window-created", (_display, win) => {
       this._onWindowCreated(win);
     });
@@ -35,6 +41,22 @@ export default class WindowOrganizer extends Extension {
       global.display.disconnect(this._windowCreatedId);
       this._windowCreatedId = null;
     }
+
+    this._settings = null;
+  }
+
+  _getTargetMonitor() {
+    const mode = this._settings?.get_string(TARGET_MONITOR_MODE_KEY) ?? TARGET_MONITOR_MODE_MOUSE;
+
+    if (mode === TARGET_MONITOR_MODE_FOCUSED) {
+      const focusedWindow = global.display.get_focus_window();
+      if (focusedWindow) {
+        return focusedWindow.get_monitor();
+      }
+    }
+
+    const [pointerX, pointerY] = global.get_pointer();
+    return getMonitorAtPoint(pointerX, pointerY);
   }
 
   _onWindowCreated(win) {
@@ -53,16 +75,38 @@ export default class WindowOrganizer extends Extension {
         return GLib.SOURCE_REMOVE;
       }
 
-      const [pointerX, pointerY] = global.get_pointer();
-      const targetMonitor = getMonitorAtPoint(pointerX, pointerY);
+      const targetMonitor = this._getTargetMonitor();
       const currentMonitor = win.get_monitor();
+      const centerWindows = this._settings?.get_boolean(CENTER_WINDOWS_KEY) ?? false;
+      const frameRect = win.get_frame_rect();
+      const nMonitors = global.display.get_n_monitors();
 
-      if (
-        targetMonitor >= 0 &&
-        targetMonitor < global.display.get_n_monitors() &&
-        currentMonitor !== targetMonitor
-      ) {
+      if (targetMonitor < 0 || targetMonitor >= nMonitors) {
+        return GLib.SOURCE_REMOVE;
+      }
+
+      const currentMonitorRect = global.display.get_monitor_geometry(currentMonitor);
+      const targetMonitorRect = global.display.get_monitor_geometry(targetMonitor);
+
+      if (currentMonitor !== targetMonitor) {
         win.move_to_monitor(targetMonitor);
+      }
+
+      if (centerWindows) {
+        const centeredX = targetMonitorRect.x + Math.floor((targetMonitorRect.width - frameRect.width) / 2);
+        const centeredY = targetMonitorRect.y + Math.floor((targetMonitorRect.height - frameRect.height) / 2);
+        win.move_frame(true, centeredX, centeredY);
+      } else if (currentMonitor !== targetMonitor) {
+        const relativeX = frameRect.x - currentMonitorRect.x;
+        const relativeY = frameRect.y - currentMonitorRect.y;
+
+        const maxX = targetMonitorRect.x + Math.max(0, targetMonitorRect.width - frameRect.width);
+        const maxY = targetMonitorRect.y + Math.max(0, targetMonitorRect.height - frameRect.height);
+
+        const movedX = Math.min(Math.max(targetMonitorRect.x + relativeX, targetMonitorRect.x), maxX);
+        const movedY = Math.min(Math.max(targetMonitorRect.y + relativeY, targetMonitorRect.y), maxY);
+
+        win.move_frame(true, movedX, movedY);
       }
 
       return GLib.SOURCE_REMOVE;
