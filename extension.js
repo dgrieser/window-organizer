@@ -59,6 +59,25 @@ export default class WindowOrganizer extends Extension {
     return getMonitorAtPoint(pointerX, pointerY);
   }
 
+  _centerWindowInMonitor(win, monitorIndex) {
+    if (!win) {
+      return;
+    }
+
+    // Let the WM keep placement for fullscreen/maximized windows.
+    if (win.is_fullscreen() || win.get_maximized() !== Meta.MaximizeFlags.NONE) {
+      return;
+    }
+
+    // Recompute frame after GNOME has finalized placement/monitor move.
+    const frameRect = win.get_frame_rect();
+    const monitorRect = global.display.get_monitor_geometry(monitorIndex);
+    const centeredX = monitorRect.x + Math.floor((monitorRect.width - frameRect.width) / 2);
+    const centeredY = monitorRect.y + Math.floor((monitorRect.height - frameRect.height) / 2);
+
+    win.move_frame(true, centeredX, centeredY);
+  }
+
   _onWindowCreated(win) {
     if (!win) {
       return;
@@ -87,16 +106,22 @@ export default class WindowOrganizer extends Extension {
 
       const currentMonitorRect = global.display.get_monitor_geometry(currentMonitor);
       const targetMonitorRect = global.display.get_monitor_geometry(targetMonitor);
+      const monitorChanged = currentMonitor !== targetMonitor;
 
-      if (currentMonitor !== targetMonitor) {
+      if (monitorChanged) {
         win.move_to_monitor(targetMonitor);
       }
 
       if (centerWindows) {
-        const centeredX = targetMonitorRect.x + Math.floor((targetMonitorRect.width - frameRect.width) / 2);
-        const centeredY = targetMonitorRect.y + Math.floor((targetMonitorRect.height - frameRect.height) / 2);
-        win.move_frame(true, centeredX, centeredY);
-      } else if (currentMonitor !== targetMonitor) {
+        if (monitorChanged) {
+          GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+            this._centerWindowInMonitor(win, targetMonitor);
+            return GLib.SOURCE_REMOVE;
+          });
+        } else {
+          this._centerWindowInMonitor(win, targetMonitor);
+        }
+      } else if (monitorChanged) {
         const relativeX = frameRect.x - currentMonitorRect.x;
         const relativeY = frameRect.y - currentMonitorRect.y;
 
