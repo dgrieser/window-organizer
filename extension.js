@@ -61,12 +61,12 @@ export default class WindowOrganizer extends Extension {
 
   _centerWindowInMonitor(win, monitorIndex) {
     if (!win) {
-      return;
+      return false;
     }
 
     // Let the WM keep placement for fullscreen/maximized windows.
     if (win.is_fullscreen() || win.get_maximized() !== Meta.MaximizeFlags.NONE) {
-      return;
+      return false;
     }
 
     // Recompute frame after GNOME has finalized placement/monitor move.
@@ -76,6 +76,7 @@ export default class WindowOrganizer extends Extension {
     const centeredY = monitorRect.y + Math.floor((monitorRect.height - frameRect.height) / 2);
 
     win.move_frame(true, centeredX, centeredY);
+    return true;
   }
 
   _onWindowCreated(win) {
@@ -108,20 +109,17 @@ export default class WindowOrganizer extends Extension {
       const targetMonitorRect = global.display.get_monitor_geometry(targetMonitor);
       const monitorChanged = currentMonitor !== targetMonitor;
 
-      if (monitorChanged) {
-        win.move_to_monitor(targetMonitor);
-      }
-
       if (centerWindows) {
-        if (monitorChanged) {
-          GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
-            this._centerWindowInMonitor(win, targetMonitor);
-            return GLib.SOURCE_REMOVE;
-          });
-        } else {
-          this._centerWindowInMonitor(win, targetMonitor);
+        const centered = this._centerWindowInMonitor(win, targetMonitor);
+
+        // For windows that should not be centered (fullscreen/maximized),
+        // still keep monitor targeting behavior.
+        if (!centered && monitorChanged) {
+          win.move_to_monitor(targetMonitor);
         }
       } else if (monitorChanged) {
+        win.move_to_monitor(targetMonitor);
+
         const relativeX = frameRect.x - currentMonitorRect.x;
         const relativeY = frameRect.y - currentMonitorRect.y;
 
