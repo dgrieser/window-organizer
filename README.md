@@ -20,3 +20,18 @@ GNOME Shell extension that moves each newly created normal window to a configura
 3. Restart GNOME Shell (or log out/in).
 4. Enable the extension:
    `gnome-extensions enable window-organizer@david-grieser.de`
+
+## Make Targets
+
+- Validate schema:
+  `make check`
+- Build extension staging dir with compiled schemas:
+  `make build`
+- Create zip package in `build/`:
+  `make package`
+- Install to local GNOME extension directory:
+  `make install`
+- Install and enable extension:
+  `make enable`
+- Disable extension:
+  `make disable`
