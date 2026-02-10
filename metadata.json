@@ -1,0 +1,8 @@
+{
+  "uuid": "window-organizer@david-grieser.de",
+  "name": "Window Organizer",
+  "description": "Moves newly created normal windows to the monitor under the mouse cursor.",
+  "url": "https://github.com/dgrieser/window-organizer",
+  "shell-version": ["49"],
+  "version": 1
+}
