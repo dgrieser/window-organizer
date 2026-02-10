@@ -11,5 +11,10 @@
       <summary>Center windows on the target monitor</summary>
       <description>If enabled, new windows are centered on the target monitor after placement.</description>
     </key>
+    <key name="debug-logging" type="b">
+      <default>false</default>
+      <summary>Enable debug logging</summary>
+      <description>If enabled, the extension writes detailed logs to the GNOME Shell journal.</description>
+    </key>
   </schema>
 </schemalist>

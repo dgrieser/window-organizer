@@ -7,6 +7,7 @@ import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/
 
 const TARGET_MONITOR_MODE_KEY = "target-monitor-mode";
 const CENTER_WINDOWS_KEY = "center-windows";
+const DEBUG_LOGGING_KEY = "debug-logging";
 const TARGET_MONITOR_MODE_MOUSE = "mouse-cursor";
 const TARGET_MONITOR_MODE_FOCUSED = "focused-window";
 
@@ -42,8 +43,15 @@ export default class WindowOrganizerPreferences extends ExtensionPreferences {
     });
     settings.bind(CENTER_WINDOWS_KEY, centerWindowsRow, "active", Gio.SettingsBindFlags.DEFAULT);
 
+    const debugLoggingRow = new Adw.SwitchRow({
+      title: "Debug logging",
+      subtitle: "Write detailed logs to GNOME Shell journal",
+    });
+    settings.bind(DEBUG_LOGGING_KEY, debugLoggingRow, "active", Gio.SettingsBindFlags.DEFAULT);
+
     group.add(targetModeRow);
     group.add(centerWindowsRow);
+    group.add(debugLoggingRow);
     page.add(group);
     window.add(page);
   }
