@@ -24,6 +24,7 @@ package: build
 	cd $(STAGE_DIR) && zip -qr ../../$(ARCHIVE) .
 
 install: build
+	if [ -L "$(EXTENSION_DIR)" ] && [ "$$(readlink -f "$(EXTENSION_DIR)")" = "$$(readlink -f "$(CURDIR)")" ]; then rm "$(EXTENSION_DIR)"; fi
 	mkdir -p $(EXTENSION_DIR)
 	rsync -a --delete $(STAGE_DIR)/ $(EXTENSION_DIR)/
 
