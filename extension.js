@@ -30,6 +30,15 @@ function getMonitorAtPoint(x, y) {
 }
 
 export default class WindowOrganizer extends Extension {
+  _isValidMonitor(monitorIndex) {
+    const nMonitors = global.display.get_n_monitors();
+    return monitorIndex >= 0 && monitorIndex < nMonitors;
+  }
+
+  _hasUsableFrameRect(frameRect) {
+    return frameRect && frameRect.width > 0 && frameRect.height > 0;
+  }
+
   _isDebugEnabled() {
     return this._settings?.get_boolean(DEBUG_LOGGING_KEY) ?? false;
   }
@@ -68,11 +77,17 @@ export default class WindowOrganizer extends Extension {
       const focusedWindow = global.display.get_focus_window();
       if (focusedWindow) {
         const monitor = focusedWindow.get_monitor();
-        this._debug(`target monitor mode=focused-window -> ${monitor}`);
-        return monitor;
-      }
+        if (this._isValidMonitor(monitor)) {
+          this._debug(`target monitor mode=focused-window -> ${monitor}`);
+          return monitor;
+        }
 
-      this._debug("target monitor mode=focused-window but no focused window; falling back to mouse");
+        this._debug(
+          `target monitor mode=focused-window but focused window monitor is invalid (${monitor}); falling back to mouse`
+        );
+      } else {
+        this._debug("target monitor mode=focused-window but no focused window; falling back to mouse");
+      }
     }
 
     const [pointerX, pointerY] = global.get_pointer();
@@ -165,13 +180,16 @@ export default class WindowOrganizer extends Extension {
 
     this._debug(`window-created title="${win.get_title()}"`);
 
-    // Delay slightly so GNOME has finished constructing and placing the new window.
+    // Retry initial placement until the window has a valid frame and monitor.
+    const maxAttempts = 10;
+    let attempts = 0;
     GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
       if (!win) {
         this._debug("placement skipped after delay: missing window");
         return GLib.SOURCE_REMOVE;
       }
 
+      attempts += 1;
       const targetMonitor = this._getTargetMonitor();
       const currentMonitor = win.get_monitor();
       const centerWindows = this._settings?.get_boolean(CENTER_WINDOWS_KEY) ?? false;
@@ -183,11 +201,30 @@ export default class WindowOrganizer extends Extension {
         return GLib.SOURCE_REMOVE;
       }
 
+      if (!this._isValidMonitor(currentMonitor)) {
+        this._debug(
+          `placement attempt=${attempts}/${maxAttempts} deferred: invalid current monitor ${currentMonitor}`
+        );
+        return attempts < maxAttempts ? GLib.SOURCE_CONTINUE : GLib.SOURCE_REMOVE;
+      }
+
+      if (!this._hasUsableFrameRect(frameRect)) {
+        this._debug(
+          `placement attempt=${attempts}/${maxAttempts} deferred: invalid frame=(${frameRect.x},${frameRect.y} ${frameRect.width}x${frameRect.height})`
+        );
+        return attempts < maxAttempts ? GLib.SOURCE_CONTINUE : GLib.SOURCE_REMOVE;
+      }
+
+      if (!win.get_compositor_private()) {
+        this._debug(`placement attempt=${attempts}/${maxAttempts} deferred: missing compositor actor`);
+        return attempts < maxAttempts ? GLib.SOURCE_CONTINUE : GLib.SOURCE_REMOVE;
+      }
+
       const currentMonitorRect = global.display.get_monitor_geometry(currentMonitor);
       const targetMonitorRect = global.display.get_monitor_geometry(targetMonitor);
       const monitorChanged = currentMonitor !== targetMonitor;
       this._debug(
-        `placing window currentMonitor=${currentMonitor} targetMonitor=${targetMonitor} center=${centerWindows} frame=(${frameRect.x},${frameRect.y} ${frameRect.width}x${frameRect.height}) currentRect=(${currentMonitorRect.x},${currentMonitorRect.y} ${currentMonitorRect.width}x${currentMonitorRect.height}) targetRect=(${targetMonitorRect.x},${targetMonitorRect.y} ${targetMonitorRect.width}x${targetMonitorRect.height})`
+        `placing window attempt=${attempts}/${maxAttempts} currentMonitor=${currentMonitor} targetMonitor=${targetMonitor} center=${centerWindows} frame=(${frameRect.x},${frameRect.y} ${frameRect.width}x${frameRect.height}) currentRect=(${currentMonitorRect.x},${currentMonitorRect.y} ${currentMonitorRect.width}x${currentMonitorRect.height}) targetRect=(${targetMonitorRect.x},${targetMonitorRect.y} ${targetMonitorRect.width}x${targetMonitorRect.height})`
       );
 
       if (monitorChanged) {
